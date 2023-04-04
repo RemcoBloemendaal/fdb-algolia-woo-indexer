@@ -218,20 +218,6 @@ if (!class_exists('Algolia_Send_Products')) {
             return $term_array;
         }
 
-        // public static function list_terms_by_parent($parent_id = 0, &$categories, &$ordered_terms)
-        // {
-        //     $root_parent = $parent_id;
-        //     foreach($categories as $index => $term){
-        //         if($term->parent == (int) $parent_id){
-        //             $ordered_terms[$term->term_id] = $term;
-        //             $root_parent = $term->term_id;
-        //             unset($categories[$index]);
-        //         }
-        //     }
-        //     if(!empty($categories)) self::list_terms_by_parent($root_parent, $categories, $ordered_terms);
-        //     // return $ordered_terms;
-        // }
-
         /**
          * Get product categories
          *
@@ -348,11 +334,6 @@ if (!class_exists('Algolia_Send_Products')) {
              * Setup arguments for sending only a single product
              */
             if (isset($id) && '' !== $id) {
-                // $arguments = array(
-                //     'status'   => 'publish',
-                //     'include'  => array($id),
-                //     'paginate' => false,
-                // );
                 $arguments = array(
                     'post_type' => 'product',
                     'post_status' => 'publish',
@@ -377,18 +358,6 @@ if (!class_exists('Algolia_Send_Products')) {
             if ( $the_query->have_posts() ) {
                 $products = $the_query->posts;
                 $totalProducts = $the_query->found_posts;
-
-                // ob_start();
-                // print(print_r($products,true));
-                // $dataOut = ob_get_contents();
-                // ob_end_clean();
-                // file_put_contents(get_stylesheet_directory() . '/data_algolia_products.txt', $dataOut . PHP_EOL);
-
-                // ob_start();
-                // print(print_r($the_query->found_posts . ' | ' . $the_query->post_count . ' | ' . $the_query->max_num_pages,true));
-                // $dataOut = ob_get_contents();
-                // ob_end_clean();
-                // file_put_contents(get_stylesheet_directory() . '/data_algolia_productcount.txt', $dataOut . PHP_EOL);
             }
 
             if (empty($products)) {
@@ -406,14 +375,6 @@ if (!class_exists('Algolia_Send_Products')) {
                 $product_type_price = self::get_product_type_price($product);
                 $sale_price = $product_type_price['sale_price'];
                 $regular_price = $product_type_price['regular_price'];
-
-
-                $sku = $product->get_sku();
-                ob_start();
-                print(print_r($sku,true));
-                $dataOut = ob_get_contents();
-                ob_end_clean();
-                file_put_contents(get_stylesheet_directory() . '/data_algolia.txt', $dataOut . PHP_EOL, FILE_APPEND);
 
                 /**
                  * always add objectID (mandatory field for algolia)
