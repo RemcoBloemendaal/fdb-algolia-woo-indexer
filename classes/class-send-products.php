@@ -218,23 +218,53 @@ if (!class_exists('Algolia_Send_Products')) {
             return $term_array;
         }
 
+        // public static function list_terms_by_parent($parent_id = 0, &$categories, &$ordered_terms)
+        // {
+        //     $root_parent = $parent_id;
+        //     foreach($categories as $index => $term){
+        //         if($term->parent == (int) $parent_id){
+        //             $ordered_terms[$term->term_id] = $term;
+        //             $root_parent = $term->term_id;
+        //             unset($categories[$index]);
+        //         }
+        //     }
+        //     if(!empty($categories)) self::list_terms_by_parent($root_parent, $categories, $ordered_terms);
+        //     // return $ordered_terms;
+        // }
+
         /**
          * Get product categories
          *
          * @param  mixed $product Product to check   
          * @return array ['tag1', 'tag2', ...] simple array with associated categories
          */
-        public static function get_product_categories($product)
+        public static function get_product_categories($product, $full)
         {
             $categories = get_the_terms($product->get_id(), 'product_cat');
             $term_array = array();
-            foreach ($categories as $category) {
-                $name = get_term($category)->name;
-                $slug = get_term($category)->slug;
-                array_push($term_array, array(
-                    "name" => $name,
-                    "slug" => $slug
-                ));
+
+            if ( $categories && ! is_wp_error( $categories ) ) {
+
+                // $ordered_terms = array(); // here you'll find your ordered terms, from root to final child
+                // self::list_terms_by_parent(0, $categories, $ordered_terms);
+
+                $ordered_terms = $categories;
+
+                foreach ($ordered_terms as $category) {
+                    $category_term = get_term($category);
+                    $name = $category_term->name;
+                    $slug = $category_term->slug;
+                    $url = get_term_link($category_term);
+                    if ($full === true){
+                        array_push($term_array, array(
+                            "name" => $name,
+                            "slug" => $slug,
+                            "url" => $url
+                        ));
+                    } else {
+                        $term_array[] = $name;
+                    }
+                }
             }
             return $term_array;
         }
@@ -294,20 +324,41 @@ if (!class_exists('Algolia_Send_Products')) {
              *
              * Limit => -1 means we send all products
              */
+            // $arguments = array(
+            //     'status'   => 'publish',
+            //     'limit'    => -1,
+            //     'paginate' => false,
+            // );
+
+            $posts_per_page = 5000;
+            $offsetCount = 0;
+            if (file_exists(WP_PLUGIN_DIR . '/fdb-algolia-woo-indexer/tmp/algolia_offset.txt')){
+                $offsetCount = file_get_contents(WP_PLUGIN_DIR . '/fdb-algolia-woo-indexer/tmp/algolia_offset.txt', true);
+            }
+
             $arguments = array(
-                'status'   => 'publish',
-                'limit'    => -1,
-                'paginate' => false,
+                'post_type' => 'product',
+                'post_status' => 'publish',
+                'posts_per_page' => $posts_per_page,
+                'fields' => 'ids',
+                'offset' => $offsetCount,
             );
 
             /**
              * Setup arguments for sending only a single product
              */
             if (isset($id) && '' !== $id) {
+                // $arguments = array(
+                //     'status'   => 'publish',
+                //     'include'  => array($id),
+                //     'paginate' => false,
+                // );
                 $arguments = array(
-                    'status'   => 'publish',
-                    'include'  => array($id),
-                    'paginate' => false,
+                    'post_type' => 'product',
+                    'post_status' => 'publish',
+                    'posts_per_page' => -1,
+                    'post__in' => [ $id ],
+                    'fields' => 'ids',
                 );
             }
 
@@ -316,9 +367,29 @@ if (!class_exists('Algolia_Send_Products')) {
              *
              * @see https://docs.woocommerce.com/wc-apidocs/function-wc_get_products.html
              */
-            $products =
-                /** @scrutinizer ignore-call */
-                wc_get_products($arguments);
+            // $products =
+            //     /** @scrutinizer ignore-call */
+            //     wc_get_products($arguments);
+
+            $products = [];
+            $the_query = new \WP_Query( $arguments );
+
+            if ( $the_query->have_posts() ) {
+                $products = $the_query->posts;
+                $totalProducts = $the_query->found_posts;
+
+                // ob_start();
+                // print(print_r($products,true));
+                // $dataOut = ob_get_contents();
+                // ob_end_clean();
+                // file_put_contents(get_stylesheet_directory() . '/data_algolia_products.txt', $dataOut . PHP_EOL);
+
+                // ob_start();
+                // print(print_r($the_query->found_posts . ' | ' . $the_query->post_count . ' | ' . $the_query->max_num_pages,true));
+                // $dataOut = ob_get_contents();
+                // ob_end_clean();
+                // file_put_contents(get_stylesheet_directory() . '/data_algolia_productcount.txt', $dataOut . PHP_EOL);
+            }
 
             if (empty($products)) {
                 return;
@@ -326,7 +397,9 @@ if (!class_exists('Algolia_Send_Products')) {
             $records = array();
             $record  = array();
 
-            foreach ($products as $product) {
+            foreach ($products as $product_id) {
+                $product = wc_get_product( $product_id );                
+
                 /**
                  * Set sale price or regular price based on product type
                  */
@@ -335,31 +408,38 @@ if (!class_exists('Algolia_Send_Products')) {
                 $regular_price = $product_type_price['regular_price'];
 
 
-
+                $sku = $product->get_sku();
+                ob_start();
+                print(print_r($sku,true));
+                $dataOut = ob_get_contents();
+                ob_end_clean();
+                file_put_contents(get_stylesheet_directory() . '/data_algolia.txt', $dataOut . PHP_EOL, FILE_APPEND);
 
                 /**
                  * always add objectID (mandatory field for algolia)
                  */
-                $record['objectID'] = $product->get_id();
+                $record['objectID'] = $product_id;
 
                 /**
                  * Extract image from $product->get_image()
                  */
                 if (self::is_basic_field_enabled("product_image")) {
-                    preg_match('/<img(.*)src(.*)=(.*)"(.*)"/U', $product->get_image(), $result);
+                    preg_match('/<img(.*)src(.*)=(.*)"(.*)"/U', $product->get_image('thumbnail'), $result);
                     $record["product_image"] = array_pop($result);
                 }
 
                 $record = self::add_to_record($record, 'product_name', $product->get_name());
                 $record = self::add_to_record($record, 'short_description', $product->get_short_description());
                 $record = self::add_to_record($record, 'long_description', $product->get_description());
-                $record = self::add_to_record($record, 'excerpt', get_the_excerpt($product->get_id()));
+                $record = self::add_to_record($record, 'excerpt', get_the_excerpt($product_id));
                 $record = self::add_to_record($record, 'regular_price', $regular_price);
                 $record = self::add_to_record($record, 'sale_price', $sale_price);
                 $record = self::add_to_record($record, 'on_sale', $product->is_on_sale());
                 $record = self::add_to_record($record, 'permalink', $product->get_permalink());
-                $record = self::add_to_record($record, 'categories', self::get_product_categories($product));
+                $record = self::add_to_record($record, 'categories', self::get_product_categories($product, true));
+                $record = self::add_to_record($record, 'categories_filter', self::get_product_categories($product, false), true);
                 $record = self::add_to_record($record, 'tags', self::get_product_tags($product));
+                $record = self::add_to_record($record, 'sku', $product->get_sku(), true);
                 $record = self::add_to_record($record, 'attributes', Algolia_Attributes::get_product_attributes($product), true);
 
                 /**
@@ -381,8 +461,15 @@ if (!class_exists('Algolia_Send_Products')) {
                 }
 
                 $records[] = $record;
+                $offsetCount++;
             }
 
+            if (!isset($id) || '' === $id) {
+                file_put_contents(WP_PLUGIN_DIR . '/fdb-algolia-woo-indexer/tmp/algolia_offset.txt', $offsetCount);
+            } elseif ($offsetCount >= $totalProducts) {
+                file_put_contents(WP_PLUGIN_DIR . '/fdb-algolia-woo-indexer/tmp/algolia_offset.txt', '0');
+            }
+            
             wp_reset_postdata();
 
             /**
