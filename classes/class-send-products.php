@@ -218,6 +218,18 @@ if (!class_exists('Algolia_Send_Products')) {
             return $term_array;
         }
 
+        public static function list_terms_by_parent($parent_id = 0, &$terms, &$ordered_terms){
+            $root_parent = $parent_id;
+            foreach($terms as $index => $term){
+                if($term->parent == (int) $parent_id){
+                    $ordered_terms[$term->term_id] = $term;
+                    $root_parent = $term->term_id;
+                    unset($terms[$index]);
+                }
+            }
+            if(!empty($terms)) self::list_terms_by_parent($root_parent, $terms, $ordered_terms);
+        }
+
         /**
          * Get product categories
          *
@@ -231,10 +243,9 @@ if (!class_exists('Algolia_Send_Products')) {
 
             if ( $categories && ! is_wp_error( $categories ) ) {
 
-                // $ordered_terms = array(); // here you'll find your ordered terms, from root to final child
-                // self::list_terms_by_parent(0, $categories, $ordered_terms);
-
-                $ordered_terms = $categories;
+                $ordered_terms = array();
+                self::list_terms_by_parent(0, $categories, $ordered_terms);
+                // $ordered_terms = $categories;
 
                 foreach ($ordered_terms as $category) {
                     $category_term = get_term($category);
@@ -316,7 +327,7 @@ if (!class_exists('Algolia_Send_Products')) {
             //     'paginate' => false,
             // );
 
-            $posts_per_page = 5000;
+            $posts_per_page = 50;
             $offsetCount = 0;
             if (file_exists(WP_PLUGIN_DIR . '/fdb-algolia-woo-indexer/tmp/algolia_offset.txt')){
                 $offsetCount = file_get_contents(WP_PLUGIN_DIR . '/fdb-algolia-woo-indexer/tmp/algolia_offset.txt', true);
@@ -447,8 +458,8 @@ if (!class_exists('Algolia_Send_Products')) {
              * Display success message
              */
             echo '<div class="notice notice-success is-dismissible">
-					 	<p>' . esc_html__('Product(s) sent to Algolia.', 'algolia-woo-indexer') . '</p>
-				  		</div>';
+                <p>' . esc_html__('Product(s) sent to Algolia.', 'algolia-woo-indexer') . '</p>
+            </div>';
         }
     }
 }
