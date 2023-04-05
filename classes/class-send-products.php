@@ -218,18 +218,6 @@ if (!class_exists('Algolia_Send_Products')) {
             return $term_array;
         }
 
-        public static function list_terms_by_parent($parent_id = 0, &$terms, &$ordered_terms){
-            $root_parent = $parent_id;
-            foreach($terms as $index => $term){
-                if($term->parent == (int) $parent_id){
-                    $ordered_terms[$term->term_id] = $term;
-                    $root_parent = $term->term_id;
-                    unset($terms[$index]);
-                }
-            }
-            if(!empty($terms)) self::list_terms_by_parent($root_parent, $terms, $ordered_terms);
-        }
-
         /**
          * Get product categories
          *
@@ -238,28 +226,82 @@ if (!class_exists('Algolia_Send_Products')) {
          */
         public static function get_product_categories($product, $full)
         {
-            $categories = get_the_terms($product->get_id(), 'product_cat');
             $term_array = array();
 
-            if ( $categories && ! is_wp_error( $categories ) ) {
+            // $categories = get_the_terms($product->get_id(), 'product_cat');
+            // if ( $categories && ! is_wp_error( $categories ) ) {
+            //     foreach ($categories as $category) {
+            //         $category_term = get_term($category);
+            //         $name = $category_term->name;
+            //         $slug = $category_term->slug;
+            //         $url = get_term_link($category_term);
+            //         if ($full === true){
+            //             array_push($term_array, array(
+            //                 "name" => $name,
+            //                 "slug" => $slug,
+            //                 "url" => $url
+            //             ));
+            //         } else {
+            //             $term_array[] = $name;
+            //         }
+            //     }
+            // }
+               
+            // Get the product categories terms ids in the product:
+            $terms_ids = wp_get_post_terms( $product->get_id(), 'product_cat', array('fields' => 'ids') );
 
-                $ordered_terms = array();
-                self::list_terms_by_parent(0, $categories, $ordered_terms);
-                // $ordered_terms = $categories;
+            if ( $terms_ids && ! is_wp_error( $terms_ids ) ){
+                $term_names = [];
+                // Loop though terms ids (product categories)
+                foreach( $terms_ids as $term_id ) {           
+                    $parent = wp_get_term_taxonomy_parent_id( $term_id, 'product_cat' );
+                    if ($parent){
+                        $parent_parent = wp_get_term_taxonomy_parent_id( $parent, 'product_cat' );
+                        if ($parent_parent){
+                            $parent_parent_parent = wp_get_term_taxonomy_parent_id( $parent_parent, 'product_cat' );
+                            if ($parent_parent_parent && !in_array($parent_parent_parent, $term_names)){
+                                $term_names[] = $parent_parent_parent;
+                            } elseif (!in_array($parent_parent, $term_names)) {
+                                $term_names[] = $parent_parent;
+                            }
+                        } elseif (!in_array($parent, $term_names)) {
+                            $term_names[] = $parent;
+                        }
+                    } elseif (!in_array($term_id, $term_names)) {
+                        $term_names[] = $term_id;
+                    }
+                }
 
-                foreach ($ordered_terms as $category) {
-                    $category_term = get_term($category);
-                    $name = $category_term->name;
-                    $slug = $category_term->slug;
-                    $url = get_term_link($category_term);
+                // 2nd level
+                foreach( $terms_ids as $term_id ) {           
+                    $parent = wp_get_term_taxonomy_parent_id( $term_id, 'product_cat' );
+                    if ($parent){
+                        if (in_array($parent, $term_names) && !in_array($term_id, $term_names)){
+                            $term_names[] = $term_id;
+                        }
+                    }
+                }
+
+                // 3rd level
+                foreach( $terms_ids as $term_id ) {           
+                    $parent = wp_get_term_taxonomy_parent_id( $term_id, 'product_cat' );
+                    if ($parent){
+                        if (in_array($parent, $term_names) && !in_array($term_id, $term_names)){
+                            $term_names[] = $term_id;
+                        }
+                    }
+                }
+
+                foreach ($term_names as $term_name) {
+                    $term = get_term( $term_name, 'product_cat' );
                     if ($full === true){
-                        array_push($term_array, array(
-                            "name" => $name,
-                            "slug" => $slug,
-                            "url" => $url
-                        ));
+                        $term_array[] = array(
+                            "name" => $term->name,
+                            "slug" => $term->slug,
+                            "url" => get_term_link($term),
+                        );
                     } else {
-                        $term_array[] = $name;
+                        $term_array[] = $term->name;
                     }
                 }
             }
@@ -327,7 +369,7 @@ if (!class_exists('Algolia_Send_Products')) {
             //     'paginate' => false,
             // );
 
-            $posts_per_page = 50;
+            $posts_per_page = 5000;
             $offsetCount = 0;
             if (file_exists(WP_PLUGIN_DIR . '/fdb-algolia-woo-indexer/tmp/algolia_offset.txt')){
                 $offsetCount = file_get_contents(WP_PLUGIN_DIR . '/fdb-algolia-woo-indexer/tmp/algolia_offset.txt', true);
