@@ -556,13 +556,34 @@ if (!class_exists('Algolia_Woo_Indexer')) {
                     do_settings_sections('algolia_woo_indexer');
                     submit_button('', 'primary wide'); ?>
                 </form>
+                <p>Producten worden per 5.000 naar Algolia API gestuurd.</p>
+                <hr>
+                <?php 
+                $offsetCount = $totalProducts = 0;
+
+                $arguments = array(
+                    'post_type' => 'product',
+                    'post_status' => 'publish',
+                    'posts_per_page' => -1,
+                    'fields' => 'ids',
+                );
+                $the_query = new \WP_Query( $arguments );
+                if ( $the_query->have_posts() ) {
+                    $totalProducts = $the_query->found_posts;
+                }
+                
+                if (file_exists(WP_PLUGIN_DIR . '/fdb-algolia-woo-indexer/tmp/algolia_offset.txt')){
+                    $offsetCount = file_get_contents(WP_PLUGIN_DIR . '/fdb-algolia-woo-indexer/tmp/algolia_offset.txt', true);
+                    echo '<p>Huidige voortgang: <strong>' . $offsetCount . '</strong> van <strong>' . $totalProducts . '</strong> producten</p><br>';
+                }
+                ?>
                 <form action="<?php echo esc_url(self::$plugin_url); ?>" method="POST">
                     <?php wp_nonce_field('send_products_to_algolia_nonce_action', 'send_products_to_algolia_nonce_name'); ?>
                     <input type="hidden" name="send_products_to_algolia" id="send_products_to_algolia" value="true" />
                     <?php submit_button(esc_html__('Send products to Algolia', 'algolia_woo_indexer_settings'), 'primary wide', '', false); ?>
                 </form>
             </div>
-<?php
+            <?php
         }
 
         /**
