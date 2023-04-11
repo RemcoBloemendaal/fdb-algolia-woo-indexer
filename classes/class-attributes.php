@@ -269,9 +269,11 @@ if (!class_exists('Algolia_Attributes')) {
              */
 
             $attributes_list_integers = [];
-            foreach ($attributes_list['list'] as $id) {
-                $sanitizedId = sanitize_text_field($id);
-                array_push($attributes_list_integers, (int) $sanitizedId);
+            if (isset($attributes_list) && array_key_exists('list', $attributes_list)){
+                foreach ($attributes_list['list'] as $id) {
+                    $sanitizedId = sanitize_text_field($id);
+                    array_push($attributes_list_integers, (int) $sanitizedId);
+                }
             }
             $sanitized['attributes_list'] = implode(',', $attributes_list_integers);
 
@@ -286,9 +288,11 @@ if (!class_exists('Algolia_Attributes')) {
              * only allow values from the ALLOWED_TAXONOMIES to be saved
              */
             $sanitized['attributes_tax_fields'] = [];
-            foreach ($attributes_tax_fields['list'] as $name) {
-                if (in_array($name, ALLOWED_TAXONOMIES)) {
-                    array_push($sanitized['attributes_tax_fields'], $name);
+            if (isset($attributes_tax_fields) && array_key_exists('list', $attributes_tax_fields)){
+                foreach ($attributes_tax_fields['list'] as $name) {
+                    if (in_array($name, ALLOWED_TAXONOMIES)) {
+                        array_push($sanitized['attributes_tax_fields'], $name);
+                    }
                 }
             }
             $sanitized['attributes_tax_fields'] = implode(',', $sanitized['attributes_tax_fields']);
