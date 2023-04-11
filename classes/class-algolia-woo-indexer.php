@@ -558,8 +558,9 @@ if (!class_exists('Algolia_Woo_Indexer')) {
                 </form>
                 <p>Producten worden per 5.000 naar Algolia API gestuurd.</p>
                 <hr>
-                <?php 
+                <?php
                 $offsetCount = $totalProducts = 0;
+                $offsetFile = WP_PLUGIN_DIR . '/fdb-algolia-woo-indexer/tmp/algolia_offset.txt'; 
 
                 $arguments = array(
                     'post_type' => 'product',
@@ -572,10 +573,10 @@ if (!class_exists('Algolia_Woo_Indexer')) {
                     $totalProducts = $the_query->found_posts;
                 }
                 
-                if (file_exists(WP_PLUGIN_DIR . '/fdb-algolia-woo-indexer/tmp/algolia_offset.txt')){
-                    $offsetCount = file_get_contents(WP_PLUGIN_DIR . '/fdb-algolia-woo-indexer/tmp/algolia_offset.txt', true);
-                    echo '<p>Huidige voortgang: <strong>' . $offsetCount . '</strong> van <strong>' . $totalProducts . '</strong> producten</p><br>';
+                if (file_exists($offsetFile)){
+                    $offsetCount = file_get_contents($offsetFile, true);
                 }
+                echo '<p>Huidige voortgang: <strong>' . $offsetCount . '</strong> van <strong>' . $totalProducts . '</strong> producten</p><br>';
                 ?>
                 <form action="<?php echo esc_url(self::$plugin_url); ?>" method="POST">
                     <?php wp_nonce_field('send_products_to_algolia_nonce_action', 'send_products_to_algolia_nonce_name'); ?>

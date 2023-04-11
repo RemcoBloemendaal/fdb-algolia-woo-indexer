@@ -371,8 +371,9 @@ if (!class_exists('Algolia_Send_Products')) {
 
             $posts_per_page = 5000;
             $offsetCount = 0;
-            if (file_exists(WP_PLUGIN_DIR . '/fdb-algolia-woo-indexer/tmp/algolia_offset.txt')){
-                $offsetCount = file_get_contents(WP_PLUGIN_DIR . '/fdb-algolia-woo-indexer/tmp/algolia_offset.txt', true);
+            $offsetFile = WP_PLUGIN_DIR . '/fdb-algolia-woo-indexer/tmp/algolia_offset.txt';
+            if (file_exists($offsetFile)){
+                $offsetCount = file_get_contents($offsetFile, true);
             }
 
             $arguments = array(
@@ -479,9 +480,11 @@ if (!class_exists('Algolia_Send_Products')) {
             }
 
             if (!isset($id) || '' === $id) {
-                file_put_contents(WP_PLUGIN_DIR . '/fdb-algolia-woo-indexer/tmp/algolia_offset.txt', $offsetCount);
-            } elseif ($offsetCount >= $totalProducts) {
-                file_put_contents(WP_PLUGIN_DIR . '/fdb-algolia-woo-indexer/tmp/algolia_offset.txt', '0');
+                if ($offsetCount >= $totalProducts) {
+                    unlink($offsetFile);
+                } else {
+                    file_put_contents($offsetFile, $offsetCount);
+                }
             }
             
             wp_reset_postdata();
