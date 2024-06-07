@@ -404,17 +404,9 @@ if (!class_exists('Algolia_Woo_Indexer')) {
          */
         public static function update_settings_options()
         {
-            /**
-             * Do not proceed if nonce for settings is not set
-             */
-            if (false === Algolia_Verify_Nonces::verify_settings_nonce()) {
-                return;
-            }
+            Algolia_Verify_Nonces::verify_settings_nonce();
 
-            /**
-             * Do not proceed if we are going to send products
-             */
-            if (true === Algolia_Verify_Nonces::verify_send_products_nonce()) {
+            if (Algolia_Verify_Nonces::verify_send_products_nonce()) {
                 return;
             }
 
@@ -514,6 +506,9 @@ if (!class_exists('Algolia_Woo_Indexer')) {
              */
             Algolia_Attributes::update_attribute_options();
         }
+
+
+
 
         /**
          * Sanitize input in settings fields and filter through regex to accept only a-z and A-Z
