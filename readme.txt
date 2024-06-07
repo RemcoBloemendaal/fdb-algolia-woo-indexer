@@ -23,15 +23,15 @@ You need to add the Application ID, the Admin API Key from the `API keys` sectio
 * Enter the name of the index that should be used to index Woocommerce products
 * Configure the fields to be indexed to your needs
 
-== Hooks ==
-n/a
-
-
 == Frequently Asked Questions ==
 None
 
 
 == Changelog ==
+
+= 1.0.7 =
+* Add support for premium version
+
 = 1.0 =
 * Initial release
 
